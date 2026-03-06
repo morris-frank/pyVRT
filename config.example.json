@@ -10,29 +10,23 @@
   "output_epsg": 4326,
   "covariates": [
     {
-      "name": "clay",
-      "weight": 1.0
-    },
+      "name": "pH", "weight": 1.0},
     {
-      "name": "pH",
-      "weight": 1.0
-    },
+      "name": "Physics__Clay (%)", "weight": 1.0},
     {
-      "name": "Chemistry__Zinc (mg/kg)",
-      "weight": 1.0
-    },
+      "name": "Physics__Silt (%)", "weight": 1.0},
     {
-      "name": "Chemistry__Phosphate (mg/100g)",
-      "weight": 1.0
-    },
+      "name": "Chemistry__Zinc (mg/kg)", "weight": 1.0},
     {
-      "name": "nFK",
-      "weight": 1.0
-    },
+      "name": "Chemistry__Phosphate (mg/100g)", "weight": 1.0},
     {
-      "name": "slope",
-      "weight": 0.8
-    }
+      "name": "Chemistry__Soil organic carbon (%)", "weight": 1.0},
+    {
+      "name": "Chemistry__Potassium (mg/100g)", "weight": 1.0},
+    {
+      "name": "Chemistry__Soil organic matter (%)", "weight": 1.0},
+    {
+      "name": "Chemistry__Sulphur (mg/100g)", "weight": 1.0}
   ],
   "grid": {
     "pixel_size_x": null,
@@ -91,7 +85,7 @@
     "enabled": true,
     "pdf_filename": "project_report.pdf",
     "dpi": 180,
-    "logo_path": "logo.svg",
+    "logo_path": "logo.png",
     "theme": {
       "bg": "#f5f3f0",
       "fg": "#29332e",
@@ -106,3 +100,5 @@
     }
   }
 }
+
+

@@ -874,9 +874,9 @@ def build_field_page_report(
     obs_stats = key_summary.get("target_stats_observed", {})
     pred_stats = key_summary.get("target_stats_kriging", {})
     area_coord2 = key_summary.get("field_area_coord2", np.nan)
-    var_score = pred_stats.get("range", np.nan)
     summary_lines = [
         f"Field: {key}",
+        "",
         f"Area (coordinate units^2): {area_coord2:.3f}" if np.isfinite(area_coord2) else "Area: n/a",
         f"Observed {target}: n={obs_stats.get('count', 0)}, min={obs_stats.get('min', np.nan):.3f}, max={obs_stats.get('max', np.nan):.3f}, "
         f"mean={obs_stats.get('mean', np.nan):.3f}, std={obs_stats.get('std', np.nan):.3f}, CV%={obs_stats.get('cv_pct', np.nan):.2f}",
@@ -886,8 +886,6 @@ def build_field_page_report(
             f"Kriging predicted {target}: n={pred_stats.get('count', 0)}, min={pred_stats.get('min', np.nan):.3f}, max={pred_stats.get('max', np.nan):.3f}, "
             f"range={pred_stats.get('range', np.nan):.3f}, mean={pred_stats.get('mean', np.nan):.3f}, std={pred_stats.get('std', np.nan):.3f}, CV%={pred_stats.get('cv_pct', np.nan):.2f}"
         )
-    summary_lines.append(f"Spatial variation ({target} range): {var_score:.3f}" if np.isfinite(var_score) else "Spatial variation: n/a")
-    summary_lines.append(f"Background: {bg_label}")
     summary_lines.append(f"CRS: EPSG:{epsg}")
     ax3.add_patch(
         plt.Rectangle(
