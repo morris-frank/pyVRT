@@ -1,0 +1,108 @@
+{
+  "input": {
+    "points_geojson": "points.geojson",
+    "polygons_geojson": "fields.geojson",
+    "join_key": "field_id",
+    "target": "soil_organic_matter"
+  },
+  "method": "svm",
+  "output_dir": "./output",
+  "output_epsg": 4326,
+  "covariates": [
+    {
+      "name": "clay",
+      "weight": 1.0
+    },
+    {
+      "name": "pH",
+      "weight": 1.0
+    },
+    {
+      "name": "Chemistry__Zinc (mg/kg)",
+      "weight": 1.0
+    },
+    {
+      "name": "Chemistry__Phosphate (mg/100g)",
+      "weight": 1.0
+    },
+    {
+      "name": "nFK",
+      "weight": 1.0
+    },
+    {
+      "name": "slope",
+      "weight": 0.8
+    }
+  ],
+  "grid": {
+    "pixel_size_x": null,
+    "pixel_size_y": null,
+    "cells_per_axis": 100,
+    "auto_refine_if_empty": true,
+    "max_auto_refine_steps": 6,
+    "max_grid_cells": 2000000
+  },
+  "kriging": {
+    "models": [
+      "linear",
+      "linear-sill",
+      "exponential",
+      "spherical",
+      "gaussian"
+    ],
+    "model": null,
+    "n_neighbors": 16,
+    "search_radius": null,
+    "max_distance_factor": 0.6,
+    "active_distance": null,
+    "lag_distance": null
+  },
+  "svm": {
+    "n_neighbors": 16,
+    "search_radius": null,
+    "idw_power": 1.0,
+    "C_values": [
+      0.001,
+      0.01,
+      0.1,
+      1.0,
+      10.0
+    ],
+    "gamma_values": [
+      0.001,
+      0.01,
+      0.1,
+      1.0,
+      10.0
+    ],
+    "kfold_min": 2,
+    "kfold_max": 5,
+    "default_C": 1.0,
+    "default_gamma": 0.1
+  },
+  "zones": {
+    "num_zones": 3,
+    "max_iterations": 100,
+    "fuzzy_coefficient": 1.25,
+    "error_tolerance": 1e-05,
+    "normalize": true
+  },
+  "report": {
+    "enabled": true,
+    "pdf_filename": "project_report.pdf",
+    "dpi": 180,
+    "logo_path": "logo.svg",
+    "theme": {
+      "bg": "#f5f3f0",
+      "fg": "#29332e",
+      "font_family": "Inter"
+    },
+    "satellite": {
+      "mode": "xyz",
+      "xyz_url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "zoom": 17,
+      "alpha": 0.95,
+      "timeout_seconds": 10
+    }
+  }
+}
