@@ -736,7 +736,7 @@ def build_field_page_report(
 
     axh.add_patch(plt.Rectangle((0, 0), 1, 1, transform=axh.transAxes, color=fg_color, zorder=0))
     if logo_img is not None:
-        axh.imshow(logo_img, extent=(0.01, 0.21, 0.12, 0.88), transform=axh.transAxes, aspect="auto", zorder=1)
+        axh.imshow(logo_img, extent=(0.01, 0.21, 0.12, 0.88), transform=axh.transAxes, zorder=1)
     axh.text(0.24, 0.64, "SOILYTIX FIELD REPORT", color="white", fontsize=17, fontweight="bold", transform=axh.transAxes)
     axh.text(0.24, 0.28, f"Field {key} | Interpolation variable: {target}", color="white", fontsize=11, transform=axh.transAxes)
 

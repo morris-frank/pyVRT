@@ -3,30 +3,28 @@
     "points_geojson": "points.geojson",
     "polygons_geojson": "fields.geojson",
     "join_key": "field_id",
-    "target": "soil_organic_matter"
+    "target": "Chemistry__Boron (mg/kg)"
   },
-  "method": "svm",
+  "method": "kriging",
   "output_dir": "./output",
   "output_epsg": 4326,
   "covariates": [
     {
-      "name": "pH", "weight": 1.0},
+      "name": "pH", "weight": 0.3},
     {
-      "name": "Physics__Clay (%)", "weight": 1.0},
+      "name": "Physics__Clay (%)", "weight": 0.3},
     {
-      "name": "Physics__Silt (%)", "weight": 1.0},
+      "name": "Physics__Silt (%)", "weight": 0.3},
     {
-      "name": "Chemistry__Zinc (mg/kg)", "weight": 1.0},
+      "name": "Chemistry__Zinc (mg/kg)", "weight": 0.3},
     {
-      "name": "Chemistry__Phosphate (mg/100g)", "weight": 1.0},
+      "name": "Chemistry__Phosphate (mg/100g)", "weight": 0.3},
     {
-      "name": "Chemistry__Soil organic carbon (%)", "weight": 1.0},
+      "name": "Chemistry__Potassium (mg/100g)", "weight": 0.3},
     {
-      "name": "Chemistry__Potassium (mg/100g)", "weight": 1.0},
+      "name": "Chemistry__Soil organic matter (%)", "weight": 0.3},
     {
-      "name": "Chemistry__Soil organic matter (%)", "weight": 1.0},
-    {
-      "name": "Chemistry__Sulphur (mg/100g)", "weight": 1.0}
+      "name": "Chemistry__Sulphur (mg/100g)", "weight": 0.3}
   ],
   "grid": {
     "pixel_size_x": null,
