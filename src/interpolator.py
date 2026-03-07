@@ -6,8 +6,6 @@ import json
 import math
 import os
 import re
-import shutil
-import subprocess
 import sys
 import tempfile
 import urllib.error
@@ -25,7 +23,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.path import Path as MplPath
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from osgeo import gdal, osr
 from PIL import Image
 from scipy import spatial
