@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
-from osgeo import gdal, osr
+import pandas as pd
+from osgeo import gdal, ogr, osr
 
 gdal.UseExceptions()
 
@@ -61,6 +63,108 @@ def write_geotiff(
 
 def write_raster_vrt(output_vrt: Path, source_tif: Path) -> None:
     gdal.Translate(str(output_vrt), str(source_tif), format="VRT")
+
+
+def _shape_field_name(name: str, used: set[str]) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_]+", "_", str(name)).strip("_") or "field"
+    if safe[0].isdigit():
+        safe = f"f_{safe}"
+    safe = safe[:10]
+
+    candidate = safe
+    counter = 1
+    while candidate.lower() in used:
+        suffix = str(counter)
+        candidate = f"{safe[: max(1, 10 - len(suffix))]}{suffix}"
+        counter += 1
+    used.add(candidate.lower())
+    return candidate
+
+
+def _ogr_field_type(series: pd.Series) -> int:
+    if pd.api.types.is_bool_dtype(series):
+        return ogr.OFTInteger
+    if pd.api.types.is_integer_dtype(series):
+        return ogr.OFTInteger64
+    if pd.api.types.is_float_dtype(series):
+        return ogr.OFTReal
+    return ogr.OFTString
+
+
+def write_point_shapefile(
+    output_shp: Path,
+    frame: pd.DataFrame,
+    x_field: str,
+    y_field: str,
+    epsg: int,
+    layer_name: Optional[str] = None,
+) -> Dict[str, str]:
+    if x_field not in frame.columns or y_field not in frame.columns:
+        raise ValueError(f"Missing coordinate columns '{x_field}'/'{y_field}' for shapefile export.")
+
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    if driver is None:
+        raise RuntimeError("GDAL ESRI Shapefile driver is not available.")
+
+    if output_shp.suffix.lower() != ".shp":
+        output_shp = output_shp.with_suffix(".shp")
+    if output_shp.exists():
+        driver.DeleteDataSource(str(output_shp))
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(int(epsg))
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
+    dataset = driver.CreateDataSource(str(output_shp))
+    if dataset is None:
+        raise RuntimeError(f"Failed to create shapefile: {output_shp}")
+
+    layer = dataset.CreateLayer(
+        layer_name or output_shp.stem,
+        srs=srs,
+        geom_type=ogr.wkbPoint,
+        options=["ENCODING=UTF-8"],
+    )
+    if layer is None:
+        dataset = None
+        raise RuntimeError(f"Failed to create shapefile layer: {output_shp}")
+
+    field_names: Dict[str, str] = {}
+    used_names: set[str] = set()
+    for column in frame.columns:
+        shape_name = _shape_field_name(column, used_names)
+        field_names[column] = shape_name
+
+        field_defn = ogr.FieldDefn(shape_name, _ogr_field_type(frame[column]))
+        if field_defn.GetType() == ogr.OFTString:
+            non_null = frame[column].dropna()
+            width = 80 if non_null.empty else min(254, max(1, int(non_null.astype(str).str.len().max())))
+            field_defn.SetWidth(width)
+        layer.CreateField(field_defn)
+
+    layer_defn = layer.GetLayerDefn()
+    for row in frame.to_dict(orient="records"):
+        feature = ogr.Feature(layer_defn)
+        geom = ogr.Geometry(ogr.wkbPoint)
+        geom.AddPoint(float(row[x_field]), float(row[y_field]))
+        feature.SetGeometry(geom)
+
+        for column, shape_name in field_names.items():
+            value = row[column]
+            if pd.isna(value):
+                continue
+            if isinstance(value, np.generic):
+                value = value.item()
+            if isinstance(value, bool):
+                value = int(value)
+            feature.SetField(shape_name, value)
+
+        layer.CreateFeature(feature)
+        geom = None
+        feature = None
+
+    dataset = None
+    return field_names
 
 
 def osr_transform_xy(x: float, y: float, src_epsg: int, dst_epsg: int) -> Tuple[float, float]:

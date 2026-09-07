@@ -23,7 +23,7 @@ from .modeling import (
     fit_variogram_params,
     run_ordinary_kriging,
 )
-from .raster import gdal, write_geotiff, write_ogr_vrt, write_raster_vrt
+from .raster import gdal, write_geotiff, write_ogr_vrt, write_point_shapefile, write_raster_vrt
 from .reporting import generate_project_pdf_report
 from .utils import compute_stats, safe_name
 
@@ -107,6 +107,31 @@ def _build_zone_covariate_surfaces(
     return surfaces
 
 
+def _write_point_outputs(
+    key_out: Path,
+    base_name: str,
+    points_df: pd.DataFrame,
+    epsg: int,
+    write_shapefiles: bool,
+) -> List[str]:
+    csv_name = f"{base_name}.csv"
+    points_df.to_csv(key_out / csv_name, index=False)
+
+    files = [csv_name]
+    if write_shapefiles:
+        shp_name = f"{base_name}.shp"
+        write_point_shapefile(
+            output_shp=key_out / shp_name,
+            frame=points_df,
+            x_field="CoordX_SM",
+            y_field="CoordY_SM",
+            epsg=epsg,
+            layer_name=base_name,
+        )
+        files.append(shp_name)
+    return files
+
+
 def _export_prediction_surface(
     key_out: Path,
     prefix: str,
@@ -122,6 +147,7 @@ def _export_prediction_surface(
     pixel_x: float,
     pixel_y: float,
     epsg: int,
+    write_shapefiles: bool,
 ) -> List[str]:
     points_name = f"{prefix}_points.csv"
     vrt_points_name = f"{prefix}_points.ogr.vrt"
@@ -135,7 +161,13 @@ def _export_prediction_surface(
             target: predictions,
         }
     )
-    points_df.to_csv(key_out / points_name, index=False)
+    files = _write_point_outputs(
+        key_out=key_out,
+        base_name=f"{prefix}_points",
+        points_df=points_df,
+        epsg=epsg,
+        write_shapefiles=write_shapefiles,
+    )
     write_ogr_vrt(
         path=key_out / vrt_points_name,
         csv_path=key_out / points_name,
@@ -160,7 +192,8 @@ def _export_prediction_surface(
         dtype=gdal.GDT_Float32,
     )
     write_raster_vrt(output_vrt=key_out / vrt_name, source_tif=key_out / tif_name)
-    return [points_name, vrt_points_name, tif_name, vrt_name]
+    files.extend([vrt_points_name, tif_name, vrt_name])
+    return files
 
 
 def _run_kriging(
@@ -180,6 +213,7 @@ def _run_kriging(
     epsg: int,
     key_out: Path,
     target: str,
+    write_shapefiles: bool,
 ) -> Tuple[Dict[str, Any], Optional[np.ndarray], List[str], Optional[Dict[str, float]]]:
     n_points = len(z_values)
     if n_points < 4:
@@ -234,6 +268,7 @@ def _run_kriging(
         pixel_x=pixel_x,
         pixel_y=pixel_y,
         epsg=epsg,
+        write_shapefiles=write_shapefiles,
     )
     result = {
         "status": "ok",
@@ -264,6 +299,7 @@ def _run_svm(
     target: str,
     key_points: pd.DataFrame,
     covariates: List[Tuple[str, float]],
+    write_shapefiles: bool,
 ) -> Tuple[Dict[str, Any], Optional[np.ndarray], List[str], Optional[Dict[str, float]]]:
     n_points = len(z_values)
     if n_points < 3:
@@ -330,13 +366,25 @@ def _run_svm(
 
     train_df = pd.DataFrame(x_train, columns=feature_names)
     train_df[target] = y_train
-    train_df.to_csv(key_out / "svm_train_features.csv", index=False)
+    files = _write_point_outputs(
+        key_out=key_out,
+        base_name="svm_train_features",
+        points_df=train_df,
+        epsg=epsg,
+        write_shapefiles=write_shapefiles,
+    )
 
     grid_df = pd.DataFrame(x_grid, columns=feature_names)
     grid_df[target] = predictions
-    grid_df.to_csv(key_out / "svm_grid_features.csv", index=False)
-
-    files = ["svm_train_features.csv", "svm_grid_features.csv"]
+    files.extend(
+        _write_point_outputs(
+            key_out=key_out,
+            base_name="svm_grid_features",
+            points_df=grid_df,
+            epsg=epsg,
+            write_shapefiles=write_shapefiles,
+        )
+    )
     files.extend(
         _export_prediction_surface(
             key_out=key_out,
@@ -353,6 +401,7 @@ def _run_svm(
             pixel_x=pixel_x,
             pixel_y=pixel_y,
             epsg=epsg,
+            write_shapefiles=write_shapefiles,
         )
     )
 
@@ -386,6 +435,7 @@ def _run_zoning(
     covariates: List[Tuple[str, float]],
     zone_covariate_surfaces: Dict[str, np.ndarray],
     zones_cfg: Dict[str, Any],
+    write_shapefiles: bool,
 ) -> Tuple[List[str], Dict[str, Any]]:
     zone_features = [zone_target_surface]
     zone_names = [f"{target}_{zone_tag}"]
@@ -419,23 +469,35 @@ def _run_zoning(
     u_transposed = u_orig.T
     fpi, nce = compute_fpi_nce(u_transposed, num_zones)
 
-    class_name = f"zones_{zone_tag}_class.csv"
-    pd.DataFrame(
-        {
-            "CoordX_SM": clipped_grid_xy[:, 0],
-            "CoordY_SM": clipped_grid_xy[:, 1],
-            "Classe": classes,
-        }
-    ).to_csv(key_out / class_name, index=False)
+    files = _write_point_outputs(
+        key_out=key_out,
+        base_name=f"zones_{zone_tag}_class",
+        points_df=pd.DataFrame(
+            {
+                "CoordX_SM": clipped_grid_xy[:, 0],
+                "CoordY_SM": clipped_grid_xy[:, 1],
+                "Classe": classes,
+            }
+        ),
+        epsg=epsg,
+        write_shapefiles=write_shapefiles,
+    )
 
-    membership_name = f"zones_{zone_tag}_membership.csv"
-    pd.DataFrame(
-        {
-            "CoordX_SM": clipped_grid_xy[:, 0],
-            "CoordY_SM": clipped_grid_xy[:, 1],
-            **{f"Cls{i + 1}": u_transposed[:, i] for i in range(num_zones)},
-        }
-    ).to_csv(key_out / membership_name, index=False)
+    files.extend(
+        _write_point_outputs(
+            key_out=key_out,
+            base_name=f"zones_{zone_tag}_membership",
+            points_df=pd.DataFrame(
+                {
+                    "CoordX_SM": clipped_grid_xy[:, 0],
+                    "CoordY_SM": clipped_grid_xy[:, 1],
+                    **{f"Cls{i + 1}": u_transposed[:, i] for i in range(num_zones)},
+                }
+            ),
+            epsg=epsg,
+            write_shapefiles=write_shapefiles,
+        )
+    )
 
     tif_name = f"zones_{zone_tag}.tif"
     vrt_name = f"zones_{zone_tag}.vrt"
@@ -465,7 +527,8 @@ def _run_zoning(
         "nce": nce,
         "features": zone_names,
     }
-    return [class_name, membership_name, tif_name, vrt_name], result
+    files.extend([tif_name, vrt_name])
+    return files, result
 
 
 def run(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -478,6 +541,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
     method = str(config.get("method", "both")).lower()
     run_kriging = method in {"both", "kriging"}
     run_svm = method in {"both", "svm"}
+    write_shapefiles = bool(config.get("output_shapefiles", False))
 
     points_df = load_points_dataframe(points_geo.features, join_key=join_key)
     polygon_groups = load_polygon_groups(polygons_geo.features, join_key=join_key)
@@ -527,7 +591,13 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
             continue
 
         key_points = key_points[needed_cols].dropna().reset_index(drop=True)
-        key_points.to_csv(key_out / "input_points.csv", index=False)
+        key_summary_files = _write_point_outputs(
+            key_out=key_out,
+            base_name="input_points",
+            points_df=key_points,
+            epsg=epsg,
+            write_shapefiles=write_shapefiles,
+        )
 
         if key_points.empty:
             summary["keys"][key] = {"status": "skipped", "reason": "no valid points after dropna"}
@@ -551,17 +621,25 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
             "pixel_size_y": pixel_y,
             "grid_total_cells": int(full_grid_xy.shape[0]),
             "grid_clipped_cells": int(clipped_grid_xy.shape[0]),
-            "files": ["input_points.csv", "grid_points.csv"],
+            "files": key_summary_files,
             "target_stats_observed": compute_stats(z_values),
         }
 
-        pd.DataFrame(
-            {
-                "CoordX_SM": full_grid_xy[:, 0],
-                "CoordY_SM": full_grid_xy[:, 1],
-                "inside_polygon": inside_mask.astype(int),
-            }
-        ).to_csv(key_out / "grid_points.csv", index=False)
+        key_summary["files"].extend(
+            _write_point_outputs(
+                key_out=key_out,
+                base_name="grid_points",
+                points_df=pd.DataFrame(
+                    {
+                        "CoordX_SM": full_grid_xy[:, 0],
+                        "CoordY_SM": full_grid_xy[:, 1],
+                        "inside_polygon": inside_mask.astype(int),
+                    }
+                ),
+                epsg=epsg,
+                write_shapefiles=write_shapefiles,
+            )
+        )
 
         kriging_surface: Optional[np.ndarray] = None
         zone_covariate_surfaces = _build_zone_covariate_surfaces(
@@ -591,6 +669,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
                 epsg=epsg,
                 key_out=key_out,
                 target=target,
+                write_shapefiles=write_shapefiles,
             )
             key_summary["kriging"] = kriging_result
             key_summary["files"].extend(kriging_files)
@@ -619,6 +698,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
                 target=target,
                 key_points=key_points,
                 covariates=covariates,
+                write_shapefiles=write_shapefiles,
             )
             key_summary["svm"] = svm_result
             key_summary["files"].extend(svm_files)
@@ -646,6 +726,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
                 covariates=covariates,
                 zone_covariate_surfaces=zone_covariate_surfaces,
                 zones_cfg=config["zones"],
+                write_shapefiles=write_shapefiles,
             )
             key_summary["files"].extend(zone_files)
             key_summary[f"zones_{zone_tag}"] = zone_result

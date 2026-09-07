@@ -22,4 +22,10 @@ Or run it fully from flags:
 pyvrt --points points.geojson --polygons fields.geojson --join-key field_id --target "Chemistry__Boron (mg/kg)" --method kriging
 ```
 
-Outputs are written into the configured `output_dir` as per-field CSV, VRT, GeoTIFF, JSON, and optional PDF files.
+To also emit sampled point layers as ESRI Shapefiles:
+
+```bash
+pyvrt --config config.example.json --output-shapefiles
+```
+
+Outputs are written into the configured `output_dir` as per-field CSV, VRT, GeoTIFF, JSON, optional shapefile, and optional PDF files.
