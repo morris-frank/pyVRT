@@ -1,31 +1,18 @@
 {
   "input": {
-    "points_geojson": "points.geojson",
+    "points_geojson": "grid.geojson",
     "polygons_geojson": "fields.geojson",
     "join_key": "field_id",
-    "target": "Chemistry__Boron (mg/kg)"
+    "target": "pH"
   },
-  "method": "kriging",
+  "method": "svm",
   "output_dir": "./output",
   "output_shapefiles": false,
   "output_epsg": 4326,
   "covariates": [
-    {
-      "name": "pH", "weight": 0.3},
-    {
-      "name": "Physics__Clay (%)", "weight": 0.3},
-    {
-      "name": "Physics__Silt (%)", "weight": 0.3},
-    {
-      "name": "Chemistry__Zinc (mg/kg)", "weight": 0.3},
-    {
-      "name": "Chemistry__Phosphate (mg/100g)", "weight": 0.3},
-    {
-      "name": "Chemistry__Potassium (mg/100g)", "weight": 0.3},
-    {
-      "name": "Chemistry__Soil organic matter (%)", "weight": 0.3},
-    {
-      "name": "Chemistry__Sulphur (mg/100g)", "weight": 0.3}
+      {"name": "slope", "weight": 0.3},
+      {"name": "PPI", "weight": 0.3},
+      {"name": "clay", "weight": 0.3}
   ],
   "grid": {
     "pixel_size_x": null,
@@ -99,5 +86,4 @@
     }
   }
 }
-
 

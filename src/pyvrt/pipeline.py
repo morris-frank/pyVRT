@@ -154,6 +154,9 @@ def _export_prediction_surface(
     tif_name = f"{prefix}.tif"
     vrt_name = f"{prefix}.vrt"
 
+    # normalize predictions
+    predictions = (predictions - predictions.min()) / (predictions.max() - predictions.min())
+
     points_df = pd.DataFrame(
         {
             "CoordX_SM": query_xy[:, 0],

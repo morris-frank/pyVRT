@@ -19,7 +19,7 @@ pyvrt --config config.example.json
 Or run it fully from flags:
 
 ```bash
-pyvrt --points points.geojson --polygons fields.geojson --join-key field_id --target "Chemistry__Boron (mg/kg)" --method kriging
+pyvrt --points points.geojson --polygons fields.geojson --join-key field_id --target "Boron (mg/kg)" --method kriging
 ```
 
 To also emit sampled point layers as ESRI Shapefiles:
