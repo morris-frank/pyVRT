@@ -18,3 +18,12 @@ output*/
 build/
 dist/
 *.egg-info/
+
+# Field data. Shapefile sidecars travel as a set, and a .prj on its own is a
+# working file too. Same reason *geojson above is ignored: these are customer
+# measurements, not repository content.
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg

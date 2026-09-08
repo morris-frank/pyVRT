@@ -15,6 +15,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "method": "both",
     "output_dir": "output",
+    "output_shapefiles": False,
     "output_epsg": 4326,
     "covariates": [],
     "grid": {
@@ -148,6 +149,8 @@ def build_config(args: argparse.Namespace) -> Dict[str, Any]:
         config["input"]["target"] = args.target
     if args.output_dir:
         config["output_dir"] = args.output_dir
+    if args.output_shapefiles:
+        config["output_shapefiles"] = True
     if args.method:
         config["method"] = args.method
     if args.num_zones is not None:
