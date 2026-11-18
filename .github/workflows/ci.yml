@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Installs the exact toolchain from mise.toml/mise.lock — same as local,
+      # including libgdal (conda-forge) that the GDAL binding builds against.
+      - uses: jdx/mise-action@v2
+        with: { cache: true }
+      # mise-action runs `mise install`, whose postinstall hook did the frozen sync.
+      # `check` is the prek hooks, the tests, gitleaks and the audit: one
+      # definition, run identically here.
+      - run: mise run check

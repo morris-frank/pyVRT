@@ -7,7 +7,7 @@ name = "pyvrt"
 version = "0.1.0"
 description = "GeoJSON-based field interpolation and management-zone generation with kriging and SVM."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 license = { file = "LICENSE" }
 keywords = ["gis", "kriging", "svm", "precision-agriculture", "geojson"]
 classifiers = [
@@ -16,12 +16,12 @@ classifiers = [
   "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: GIS",
 ]
 dependencies = [
-  "gdal>=3.0",
+  # Must equal the libgdal that mise installs (mise.toml): the binding builds against it.
+  "gdal==3.13.3",
   "matplotlib>=3.7",
   "numpy>=1.24",
   "pandas>=2.0",
@@ -30,11 +30,8 @@ dependencies = [
   "scipy>=1.11",
 ]
 
-[project.optional-dependencies]
-dev = [
-  "build>=1.2",
-  "twine>=5.0",
-]
+[dependency-groups]
+dev = ["pytest>=8"]
 
 [project.scripts]
 pyvrt = "pyvrt.cli:main"
@@ -46,3 +43,34 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["pyvrt*", "krig*", "skfuzzy*"]
+
+[tool.uv]
+required-version = ">=0.13,<0.14"   # enforce the uv minor that made the lock
+# Dependency cooldown: never resolve a release younger than this. Supply-chain
+# safety margin (malicious releases usually get yanked within days). Sliding
+# window: reproducibility still comes from uv.lock + `uv sync --frozen`.
+exclude-newer = "2 weeks ago"
+
+[tool.uv.extra-build-dependencies]
+# GDAL's setup.py builds the numpy array bindings only when numpy is importable.
+gdal = ["numpy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+# Vendored third-party code (scikit-fuzzy, pykrige-derived kriging) stays as upstream wrote it.
+extend-exclude = ["src/skfuzzy", "src/krig"]
+force-exclude = true  # honour the excludes when prek passes files explicitly
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["E501"]  # the formatter owns wrapping; long strings and URLs stay whole
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S311"]  # asserts; seeded random builds fixtures, not secrets
+# configure_runtime() must point matplotlib at a writable cache before it is imported.
+"src/pyvrt/{geometry,reporting}.py" = ["E402"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "--strict-config"]
+testpaths = ["tests"]
