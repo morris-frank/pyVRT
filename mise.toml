@@ -1,0 +1,38 @@
+#:schema https://mise.en.dev/schema/mise.json
+# mise is the single source of truth for the toolchain.
+# Exact resolved versions are recorded in mise.lock (committed).
+min_version = "2026.7.18"
+
+[settings]
+lockfile = true
+
+[tools]
+python = "3.13"
+uv = "0.13"
+# GDAL has no PyPI wheels: the GDAL sdist builds against this libgdal (conda-forge,
+# via mise's conda backend), so the Python binding in pyproject.toml pins the same version.
+gdal = "3.13.3"
+ruff = "0.16"
+gitleaks = "8"
+osv-scanner = "2"
+prek = "latest"  # pre-1.0: churn expected, take the newest
+
+[env]
+UV_PROJECT_ENVIRONMENT = ".venv"
+_.file = [".env", ".env.local"]
+# Bake mise's libgdal into the GDAL binding's rpath when uv builds it from the sdist,
+# so `osgeo` loads without DYLD/LD_LIBRARY_PATH (which macOS SIP strips anyway).
+LDFLAGS = "-Wl,-rpath,{{ env.MISE_DATA_DIR | default(value=env.HOME ~ '/.local/share/mise') }}/installs/gdal/3.13.3/lib"
+
+[hooks]
+# `mise install` is the cold start: after the tools, the deps (frozen) and the git hooks.
+postinstall = ["uv sync --frozen", "prek install", "prek install -t pre-push"]
+
+[tasks.check]
+description = "Everything CI runs, the definition of done: the prek hooks, tests, gitleaks and the dependency audit"
+run = [
+  "prek run --all-files",
+  "uv run --frozen pytest",
+  "gitleaks git --redact --verbose",  # committed history only: `dir` would walk gitignored field data
+  "osv-scanner scan source --lockfile uv.lock",
+]
