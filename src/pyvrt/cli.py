@@ -26,7 +26,9 @@ def make_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also export sampled point layers as ESRI Shapefiles.",
     )
-    parser.add_argument("--report-pdf", help="PDF filename for the combined report inside output-dir.")
+    parser.add_argument(
+        "--report-pdf", help="PDF filename for the combined report inside output-dir."
+    )
     parser.add_argument("--no-report", action="store_true", help="Disable PDF report generation.")
     parser.add_argument(
         "--satellite-mode",

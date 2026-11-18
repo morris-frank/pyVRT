@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from sklearn import svm
 from sklearn.preprocessing import StandardScaler, scale
 
-from skfuzzy.cluster import _cmeans
-
 from krig import semivariogram
+from skfuzzy.cluster import _cmeans
 
 from .data import load_geojson, load_points_dataframe, load_polygon_groups
 from .geometry import field_area_coord2, points_inside_polygons, polygons_bbox, safe_grid_build
@@ -30,8 +29,8 @@ from .utils import compute_stats, safe_name
 FLOAT_NODATA = -999999999.0
 
 
-def _extract_covariates(config: Dict[str, Any]) -> List[Tuple[str, float]]:
-    covariates: List[Tuple[str, float]] = []
+def _extract_covariates(config: dict[str, Any]) -> list[tuple[str, float]]:
+    covariates: list[tuple[str, float]] = []
     for item in config.get("covariates") or []:
         if isinstance(item, dict) and "name" in item:
             covariates.append((str(item["name"]), float(item.get("weight", 1.0))))
@@ -39,9 +38,21 @@ def _extract_covariates(config: Dict[str, Any]) -> List[Tuple[str, float]]:
 
 
 def _prepare_grid(
-    poly_geoms: List[Dict[str, Any]],
-    grid_cfg: Dict[str, Any],
-) -> Tuple[float, float, float, float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    poly_geoms: list[dict[str, Any]],
+    grid_cfg: dict[str, Any],
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+    float,
+    float,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
     xmin, ymin, xmax, ymax = polygons_bbox(poly_geoms)
 
     pixel_x = grid_cfg.get("pixel_size_x")
@@ -65,23 +76,37 @@ def _prepare_grid(
         for _ in range(int(grid_cfg.get("max_auto_refine_steps", 6))):
             pixel_x /= 2.0
             pixel_y /= 2.0
-            xs, ys, full_grid_xy = safe_grid_build(xmin, ymin, xmax, ymax, pixel_x, pixel_y, max_cells)
+            xs, ys, full_grid_xy = safe_grid_build(
+                xmin, ymin, xmax, ymax, pixel_x, pixel_y, max_cells
+            )
             inside_mask = points_inside_polygons(full_grid_xy, poly_geoms)
             clipped_grid_xy = full_grid_xy[inside_mask]
             if clipped_grid_xy.size > 0:
                 break
 
-    return xmin, ymin, xmax, ymax, pixel_x, pixel_y, xs, ys, full_grid_xy, inside_mask, clipped_grid_xy
+    return (
+        xmin,
+        ymin,
+        xmax,
+        ymax,
+        pixel_x,
+        pixel_y,
+        xs,
+        ys,
+        full_grid_xy,
+        inside_mask,
+        clipped_grid_xy,
+    )
 
 
 def _build_zone_covariate_surfaces(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     xy: np.ndarray,
     key_points: pd.DataFrame,
-    covariates: List[Tuple[str, float]],
+    covariates: list[tuple[str, float]],
     clipped_grid_xy: np.ndarray,
     max_dist: float,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     if not covariates:
         return {}
 
@@ -93,7 +118,7 @@ def _build_zone_covariate_surfaces(
     svm_radius = float(svm_radius)
     idw_power = float(config["svm"].get("idw_power", 1.0))
 
-    surfaces: Dict[str, np.ndarray] = {}
+    surfaces: dict[str, np.ndarray] = {}
     for cov_name, weight in covariates:
         surface = build_covariate_surface(
             sample_xy=xy,
@@ -113,7 +138,7 @@ def _write_point_outputs(
     points_df: pd.DataFrame,
     epsg: int,
     write_shapefiles: bool,
-) -> List[str]:
+) -> list[str]:
     csv_name = f"{base_name}.csv"
     points_df.to_csv(key_out / csv_name, index=False)
 
@@ -148,7 +173,7 @@ def _export_prediction_surface(
     pixel_y: float,
     epsg: int,
     write_shapefiles: bool,
-) -> List[str]:
+) -> list[str]:
     points_name = f"{prefix}_points.csv"
     vrt_points_name = f"{prefix}_points.ogr.vrt"
     tif_name = f"{prefix}.tif"
@@ -197,7 +222,7 @@ def _export_prediction_surface(
 
 
 def _run_kriging(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     xy_df: pd.DataFrame,
     z_values: np.ndarray,
     max_dist: float,
@@ -214,7 +239,7 @@ def _run_kriging(
     key_out: Path,
     target: str,
     write_shapefiles: bool,
-) -> Tuple[Dict[str, Any], Optional[np.ndarray], List[str], Optional[Dict[str, float]]]:
+) -> tuple[dict[str, Any], np.ndarray | None, list[str], dict[str, float] | None]:
     n_points = len(z_values)
     if n_points < 4:
         return {"status": "skipped", "reason": "requires at least 4 points"}, None, [], None
@@ -280,7 +305,7 @@ def _run_kriging(
 
 
 def _run_svm(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     xy: np.ndarray,
     xy_df: pd.DataFrame,
     z_values: np.ndarray,
@@ -298,9 +323,9 @@ def _run_svm(
     key_out: Path,
     target: str,
     key_points: pd.DataFrame,
-    covariates: List[Tuple[str, float]],
+    covariates: list[tuple[str, float]],
     write_shapefiles: bool,
-) -> Tuple[Dict[str, Any], Optional[np.ndarray], List[str], Optional[Dict[str, float]]]:
+) -> tuple[dict[str, Any], np.ndarray | None, list[str], dict[str, float] | None]:
     n_points = len(z_values)
     if n_points < 3:
         return {"status": "skipped", "reason": "requires at least 3 points"}, None, [], None
@@ -352,8 +377,12 @@ def _run_svm(
     c_best, gamma_best = fit_svm_params(
         features=x_train,
         labels=y_train,
-        c_values=[float(value) for value in config["svm"].get("C_values", [0.001, 0.01, 0.1, 1, 10])],
-        gamma_values=[float(value) for value in config["svm"].get("gamma_values", [0.001, 0.01, 0.1, 1, 10])],
+        c_values=[
+            float(value) for value in config["svm"].get("C_values", [0.001, 0.01, 0.1, 1, 10])
+        ],
+        gamma_values=[
+            float(value) for value in config["svm"].get("gamma_values", [0.001, 0.01, 0.1, 1, 10])
+        ],
         kfolds=kfolds,
         default_c=float(config["svm"].get("default_C", 1.0)),
         default_gamma=float(config["svm"].get("default_gamma", 0.1)),
@@ -432,11 +461,11 @@ def _run_zoning(
     pixel_y: float,
     epsg: int,
     target: str,
-    covariates: List[Tuple[str, float]],
-    zone_covariate_surfaces: Dict[str, np.ndarray],
-    zones_cfg: Dict[str, Any],
+    covariates: list[tuple[str, float]],
+    zone_covariate_surfaces: dict[str, np.ndarray],
+    zones_cfg: dict[str, Any],
     write_shapefiles: bool,
-) -> Tuple[List[str], Dict[str, Any]]:
+) -> tuple[list[str], dict[str, Any]]:
     zone_features = [zone_target_surface]
     zone_names = [f"{target}_{zone_tag}"]
     for cov_name, _weight in covariates:
@@ -531,7 +560,7 @@ def _run_zoning(
     return files, result
 
 
-def run(config: Dict[str, Any]) -> Dict[str, Any]:
+def run(config: dict[str, Any]) -> dict[str, Any]:
     points_geo = load_geojson(Path(config["input"]["points_geojson"]))
     polygons_geo = load_geojson(Path(config["input"]["polygons_geojson"]))
 
@@ -545,12 +574,14 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
 
     points_df = load_points_dataframe(points_geo.features, join_key=join_key)
     polygon_groups = load_polygon_groups(polygons_geo.features, join_key=join_key)
-    common_keys = sorted(set(points_df[join_key].astype(str).tolist()).intersection(polygon_groups.keys()))
+    common_keys = sorted(
+        set(points_df[join_key].astype(str).tolist()).intersection(polygon_groups.keys())
+    )
 
     output_dir = Path(config["output_dir"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    summary: Dict[str, Any] = {
+    summary: dict[str, Any] = {
         "input_points": str(Path(config["input"]["points_geojson"]).resolve()),
         "input_polygons": str(Path(config["input"]["polygons_geojson"]).resolve()),
         "join_key": join_key,
@@ -587,7 +618,10 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
         needed_cols = ["CoordX_SM", "CoordY_SM", target] + [name for name, _ in covariates]
         missing_cols = [col for col in needed_cols if col not in key_points.columns]
         if missing_cols:
-            summary["keys"][key] = {"status": "skipped", "reason": f"missing columns: {missing_cols}"}
+            summary["keys"][key] = {
+                "status": "skipped",
+                "reason": f"missing columns: {missing_cols}",
+            }
             continue
 
         key_points = key_points[needed_cols].dropna().reset_index(drop=True)
@@ -603,7 +637,10 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
             summary["keys"][key] = {"status": "skipped", "reason": "no valid points after dropna"}
             continue
         if clipped_grid_xy.size == 0:
-            summary["keys"][key] = {"status": "skipped", "reason": "no grid cells inside polygon geometry"}
+            summary["keys"][key] = {
+                "status": "skipped",
+                "reason": "no grid cells inside polygon geometry",
+            }
             continue
 
         xy_df = key_points[["CoordX_SM", "CoordY_SM"]]
@@ -611,7 +648,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
         z_values = key_points[target].to_numpy(dtype=float)
         max_dist = float(semivariogram.Semivariogram(xy_df, pd.Series(z_values)).max_dist)
 
-        key_summary: Dict[str, Any] = {
+        key_summary: dict[str, Any] = {
             "status": "ok",
             "n_points": int(len(key_points)),
             "n_polygons": int(len(poly_geoms)),
@@ -641,7 +678,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
             )
         )
 
-        kriging_surface: Optional[np.ndarray] = None
+        kriging_surface: np.ndarray | None = None
         zone_covariate_surfaces = _build_zone_covariate_surfaces(
             config=config,
             xy=xy,
@@ -676,7 +713,7 @@ def run(config: Dict[str, Any]) -> Dict[str, Any]:
             if kriging_stats is not None:
                 key_summary["target_stats_kriging"] = kriging_stats
 
-        svm_surface: Optional[np.ndarray] = None
+        svm_surface: np.ndarray | None = None
         if run_svm:
             svm_result, svm_surface, svm_files, svm_stats = _run_svm(
                 config=config,

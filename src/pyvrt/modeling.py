@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -95,12 +95,12 @@ def choose_kfolds(n_samples: int, kmin: int, kmax: int) -> int:
 def fit_svm_params(
     features: np.ndarray,
     labels: np.ndarray,
-    c_values: List[float],
-    gamma_values: List[float],
+    c_values: list[float],
+    gamma_values: list[float],
     kfolds: int,
     default_c: float,
     default_gamma: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     if features.shape[0] < 3 or kfolds < 2:
         return default_c, default_gamma
 
@@ -116,7 +116,7 @@ def fit_svm_params(
     return float(params["C"]), float(params["gamma"])
 
 
-def compute_fpi_nce(u_transposed: np.ndarray, k_classes: int) -> Tuple[float, float]:
+def compute_fpi_nce(u_transposed: np.ndarray, k_classes: int) -> tuple[float, float]:
     n_samples = u_transposed.shape[0]
     sum1 = 0.0
     sum2 = 0.0
@@ -134,8 +134,8 @@ def compute_fpi_nce(u_transposed: np.ndarray, k_classes: int) -> Tuple[float, fl
 def fit_variogram_params(
     xy_df: pd.DataFrame,
     z_series: pd.Series,
-    cfg: Dict[str, Any],
-) -> Tuple[str, List[float], Dict[str, Any]]:
+    cfg: dict[str, Any],
+) -> tuple[str, list[float], dict[str, Any]]:
     sem = semivariogram.Semivariogram(xy_df, z_series)
     max_dist = float(sem.max_dist)
     min_dist = float(sem.min_dist)
@@ -151,7 +151,13 @@ def fit_variogram_params(
     lag_distance = max(float(lag_distance), min_dist)
 
     sem.Exp_Semiv(float(lag_distance), float(active_distance))
-    use_models = cfg.get("models") or ["linear", "linear-sill", "exponential", "spherical", "gaussian"]
+    use_models = cfg.get("models") or [
+        "linear",
+        "linear-sill",
+        "exponential",
+        "spherical",
+        "gaussian",
+    ]
 
     while True:
         try:
@@ -186,7 +192,7 @@ def run_ordinary_kriging(
     z_values: np.ndarray,
     query_xy: np.ndarray,
     variogram_model: str,
-    variogram_parameters: List[float],
+    variogram_parameters: list[float],
     n_neighbors: int,
     radius: float,
 ) -> np.ndarray:

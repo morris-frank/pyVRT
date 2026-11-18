@@ -3,10 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-
-DEFAULT_CONFIG: Dict[str, Any] = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "input": {
         "points_geojson": None,
         "polygons_geojson": None,
@@ -74,7 +73,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 
-def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     out = dict(base)
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(out.get(key), dict):
@@ -93,7 +92,7 @@ def parse_literal(value: str) -> Any:
         return value
 
 
-def set_nested(config: Dict[str, Any], dotted_key: str, value: Any) -> None:
+def set_nested(config: dict[str, Any], dotted_key: str, value: Any) -> None:
     parts = dotted_key.split(".")
     ref = config
     for part in parts[:-1]:
@@ -103,10 +102,10 @@ def set_nested(config: Dict[str, Any], dotted_key: str, value: Any) -> None:
     ref[parts[-1]] = value
 
 
-def parse_covariates(covariates_arg: Optional[str]) -> List[Dict[str, Any]]:
+def parse_covariates(covariates_arg: str | None) -> list[dict[str, Any]]:
     if not covariates_arg:
         return []
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     for token in covariates_arg.split(","):
         token = token.strip()
         if not token:
@@ -119,7 +118,7 @@ def parse_covariates(covariates_arg: Optional[str]) -> List[Dict[str, Any]]:
     return items
 
 
-def validate_required(cfg: Dict[str, Any]) -> None:
+def validate_required(cfg: dict[str, Any]) -> None:
     missing = []
     for field in ("points_geojson", "polygons_geojson", "join_key", "target"):
         if not cfg["input"].get(field):
@@ -128,7 +127,7 @@ def validate_required(cfg: Dict[str, Any]) -> None:
         raise ValueError(f"Missing required configuration: {', '.join(missing)}")
 
 
-def build_config(args: argparse.Namespace) -> Dict[str, Any]:
+def build_config(args: argparse.Namespace) -> dict[str, Any]:
     config = json.loads(json.dumps(DEFAULT_CONFIG))
     config_base_dir = Path.cwd()
 

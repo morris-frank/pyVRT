@@ -114,7 +114,9 @@ def _maybe_project(points: gpd.GeoDataFrame, fields: gpd.GeoDataFrame):
     return points, fields
 
 
-def build_field_voronoi(samples: gpd.GeoDataFrame, fields: gpd.GeoDataFrame, field_col="Schlag") -> gpd.GeoDataFrame:
+def build_field_voronoi(
+    samples: gpd.GeoDataFrame, fields: gpd.GeoDataFrame, field_col="Schlag"
+) -> gpd.GeoDataFrame:
     if field_col not in samples.columns:
         raise ValueError(f"Missing '{field_col}' in samples")
     if field_col not in fields.columns:
