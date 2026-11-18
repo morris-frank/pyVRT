@@ -4,15 +4,15 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
 
 @dataclass
 class GeoJSONData:
-    raw: Dict[str, Any]
-    features: List[Dict[str, Any]]
+    raw: dict[str, Any]
+    features: list[dict[str, Any]]
     epsg: int
 
 
@@ -37,8 +37,8 @@ def load_geojson(path: Path) -> GeoJSONData:
     return GeoJSONData(raw=raw, features=features, epsg=epsg)
 
 
-def load_points_dataframe(features: List[Dict[str, Any]], join_key: str) -> pd.DataFrame:
-    rows: List[Dict[str, Any]] = []
+def load_points_dataframe(features: list[dict[str, Any]], join_key: str) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
     for feat in features:
         geom = feat.get("geometry") or {}
         if geom.get("type") != "Point":
@@ -59,8 +59,10 @@ def load_points_dataframe(features: List[Dict[str, Any]], join_key: str) -> pd.D
     return pd.DataFrame(rows)
 
 
-def load_polygon_groups(features: List[Dict[str, Any]], join_key: str) -> Dict[str, List[Dict[str, Any]]]:
-    grouped: Dict[str, List[Dict[str, Any]]] = {}
+def load_polygon_groups(
+    features: list[dict[str, Any]], join_key: str
+) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for feat in features:
         geom = feat.get("geometry") or {}
         if geom.get("type") not in {"Polygon", "MultiPolygon"}:

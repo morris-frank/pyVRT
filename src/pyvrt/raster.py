@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -97,10 +96,12 @@ def write_point_shapefile(
     x_field: str,
     y_field: str,
     epsg: int,
-    layer_name: Optional[str] = None,
-) -> Dict[str, str]:
+    layer_name: str | None = None,
+) -> dict[str, str]:
     if x_field not in frame.columns or y_field not in frame.columns:
-        raise ValueError(f"Missing coordinate columns '{x_field}'/'{y_field}' for shapefile export.")
+        raise ValueError(
+            f"Missing coordinate columns '{x_field}'/'{y_field}' for shapefile export."
+        )
 
     driver = ogr.GetDriverByName("ESRI Shapefile")
     if driver is None:
@@ -129,7 +130,7 @@ def write_point_shapefile(
         dataset = None
         raise RuntimeError(f"Failed to create shapefile layer: {output_shp}")
 
-    field_names: Dict[str, str] = {}
+    field_names: dict[str, str] = {}
     used_names: set[str] = set()
     for column in frame.columns:
         shape_name = _shape_field_name(column, used_names)
@@ -138,7 +139,11 @@ def write_point_shapefile(
         field_defn = ogr.FieldDefn(shape_name, _ogr_field_type(frame[column]))
         if field_defn.GetType() == ogr.OFTString:
             non_null = frame[column].dropna()
-            width = 80 if non_null.empty else min(254, max(1, int(non_null.astype(str).str.len().max())))
+            width = (
+                80
+                if non_null.empty
+                else min(254, max(1, int(non_null.astype(str).str.len().max())))
+            )
             field_defn.SetWidth(width)
         layer.CreateField(field_defn)
 
@@ -167,7 +172,7 @@ def write_point_shapefile(
     return field_names
 
 
-def osr_transform_xy(x: float, y: float, src_epsg: int, dst_epsg: int) -> Tuple[float, float]:
+def osr_transform_xy(x: float, y: float, src_epsg: int, dst_epsg: int) -> tuple[float, float]:
     if src_epsg == dst_epsg:
         return float(x), float(y)
 
@@ -183,10 +188,10 @@ def osr_transform_xy(x: float, y: float, src_epsg: int, dst_epsg: int) -> Tuple[
 
 
 def transform_bbox(
-    bbox: Tuple[float, float, float, float],
+    bbox: tuple[float, float, float, float],
     src_epsg: int,
     dst_epsg: int,
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     xmin, ymin, xmax, ymax = bbox
     corners = [
         osr_transform_xy(xmin, ymin, src_epsg, dst_epsg),
@@ -199,7 +204,9 @@ def transform_bbox(
     return min(xs), min(ys), max(xs), max(ys)
 
 
-def read_geotiff_for_plot(path: Path) -> Tuple[np.ndarray, Tuple[float, float, float, float], Optional[float]]:
+def read_geotiff_for_plot(
+    path: Path,
+) -> tuple[np.ndarray, tuple[float, float, float, float], float | None]:
     dataset = gdal.Open(str(path))
     if dataset is None:
         raise RuntimeError(f"Could not read raster: {path}")

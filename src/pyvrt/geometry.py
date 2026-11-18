@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 
@@ -11,13 +12,13 @@ configure_runtime()
 from matplotlib.path import Path as MplPath
 
 
-def get_polygon_rings(geometry: Dict[str, Any]) -> List[List[np.ndarray]]:
-    polygons: List[List[np.ndarray]] = []
+def get_polygon_rings(geometry: dict[str, Any]) -> list[list[np.ndarray]]:
+    polygons: list[list[np.ndarray]] = []
     gtype = geometry.get("type")
     coords = geometry.get("coordinates", [])
 
     if gtype == "Polygon":
-        polygon: List[np.ndarray] = []
+        polygon: list[np.ndarray] = []
         for ring in coords:
             arr = np.asarray(ring, dtype=float)
             if arr.ndim == 2 and arr.shape[0] >= 3 and arr.shape[1] >= 2:
@@ -37,9 +38,9 @@ def get_polygon_rings(geometry: Dict[str, Any]) -> List[List[np.ndarray]]:
     return polygons
 
 
-def polygons_bbox(geometries: Iterable[Dict[str, Any]]) -> Tuple[float, float, float, float]:
-    xs: List[float] = []
-    ys: List[float] = []
+def polygons_bbox(geometries: Iterable[dict[str, Any]]) -> tuple[float, float, float, float]:
+    xs: list[float] = []
+    ys: list[float] = []
     for geom in geometries:
         for poly in get_polygon_rings(geom):
             for ring in poly:
@@ -50,7 +51,9 @@ def polygons_bbox(geometries: Iterable[Dict[str, Any]]) -> Tuple[float, float, f
     return float(min(xs)), float(min(ys)), float(max(xs)), float(max(ys))
 
 
-def points_inside_polygons(points_xy: np.ndarray, geometries: Iterable[Dict[str, Any]]) -> np.ndarray:
+def points_inside_polygons(
+    points_xy: np.ndarray, geometries: Iterable[dict[str, Any]]
+) -> np.ndarray:
     mask = np.zeros(points_xy.shape[0], dtype=bool)
     for geom in geometries:
         for poly in get_polygon_rings(geom):
@@ -69,7 +72,7 @@ def build_grid(
     ymax: float,
     pixel_x: float,
     pixel_y: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     xs = np.arange(xmin, xmax, pixel_x, dtype=float)
     ys = np.arange(ymin, ymax, pixel_y, dtype=float)
     if xs.size == 0 or ys.size == 0:
@@ -87,7 +90,7 @@ def safe_grid_build(
     pixel_x: float,
     pixel_y: float,
     max_cells: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     xs, ys, grid = build_grid(xmin, ymin, xmax, ymax, pixel_x, pixel_y)
     n_cells = int(grid.shape[0])
     if n_cells > int(max_cells):
@@ -104,7 +107,7 @@ def ring_area(ring: np.ndarray) -> float:
     return 0.5 * float(np.sum(x[:-1] * y[1:] - x[1:] * y[:-1]))
 
 
-def polygon_area_coord2(geometry: Dict[str, Any]) -> float:
+def polygon_area_coord2(geometry: dict[str, Any]) -> float:
     area = 0.0
     for poly in get_polygon_rings(geometry):
         if not poly:
@@ -115,5 +118,5 @@ def polygon_area_coord2(geometry: Dict[str, Any]) -> float:
     return float(area)
 
 
-def field_area_coord2(geometries: Iterable[Dict[str, Any]]) -> float:
+def field_area_coord2(geometries: Iterable[dict[str, Any]]) -> float:
     return float(sum(polygon_area_coord2(geometry) for geometry in geometries))

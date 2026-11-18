@@ -3,9 +3,10 @@ from __future__ import annotations
 import math
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -27,15 +28,19 @@ from matplotlib.patches import Patch
 _XYZ_FETCH_DISABLED = False
 
 
-def _lonlat_to_tile(lon: float, lat: float, zoom: int) -> Tuple[int, int]:
+def _lonlat_to_tile(lon: float, lat: float, zoom: int) -> tuple[int, int]:
     lat = max(min(lat, 85.05112878), -85.05112878)
     n = 2**zoom
     xtile = int((lon + 180.0) / 360.0 * n)
-    ytile = int((1.0 - math.log(math.tan(math.radians(lat)) + (1 / math.cos(math.radians(lat)))) / math.pi) / 2.0 * n)
+    ytile = int(
+        (1.0 - math.log(math.tan(math.radians(lat)) + (1 / math.cos(math.radians(lat)))) / math.pi)
+        / 2.0
+        * n
+    )
     return xtile, ytile
 
 
-def _tile_bounds_xyz(x: int, y: int, z: int) -> Tuple[float, float, float, float]:
+def _tile_bounds_xyz(x: int, y: int, z: int) -> tuple[float, float, float, float]:
     n = 2**z
     lon_left = x / n * 360.0 - 180.0
     lon_right = (x + 1) / n * 360.0 - 180.0
@@ -45,12 +50,12 @@ def _tile_bounds_xyz(x: int, y: int, z: int) -> Tuple[float, float, float, float
 
 
 def _fetch_xyz_background(
-    bbox: Tuple[float, float, float, float],
+    bbox: tuple[float, float, float, float],
     epsg: int,
     xyz_url: str,
     zoom: int,
     timeout_seconds: int,
-) -> Optional[Tuple[np.ndarray, Tuple[float, float, float, float], str]]:
+) -> tuple[np.ndarray, tuple[float, float, float, float], str] | None:
     global _XYZ_FETCH_DISABLED
     if _XYZ_FETCH_DISABLED:
         return None
@@ -80,7 +85,7 @@ def _fetch_xyz_background(
             success = False
             for attempt in range(3):
                 try:
-                    with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
+                    with urllib.request.urlopen(url, timeout=timeout_seconds) as response:  # noqa: S310 - tile URL is operator config
                         data = response.read()
                     tile = Image.open(BytesIO(data)).convert("RGB")
                     success = True
@@ -103,10 +108,10 @@ def _fetch_xyz_background(
 
 
 def get_satellite_background(
-    bbox: Tuple[float, float, float, float],
+    bbox: tuple[float, float, float, float],
     epsg: int,
-    sat_cfg: Dict[str, Any],
-) -> Optional[Tuple[np.ndarray, Tuple[float, float, float, float], str]]:
+    sat_cfg: dict[str, Any],
+) -> tuple[np.ndarray, tuple[float, float, float, float], str] | None:
     mode = str(sat_cfg.get("mode", "xyz")).lower()
     if mode == "none":
         return None
@@ -121,7 +126,7 @@ def get_satellite_background(
     return None
 
 
-def draw_polygon_edges(ax: Any, geometries: Iterable[Dict[str, Any]], color: str = "black") -> None:
+def draw_polygon_edges(ax: Any, geometries: Iterable[dict[str, Any]], color: str = "black") -> None:
     for geom in geometries:
         for poly in get_polygon_rings(geom):
             for ring in poly:
@@ -133,7 +138,7 @@ def resolve_font_family(preferred: str) -> str:
         available = {font.name for font in font_manager.fontManager.ttflist}
         if preferred in available:
             return preferred
-    except Exception:
+    except Exception:  # noqa: S110 - font lookup is best effort; fall back below
         pass
     return "DejaVu Sans"
 
@@ -142,12 +147,12 @@ def build_field_page_report(
     pdf: PdfPages,
     key: str,
     key_out: Path,
-    key_summary: Dict[str, Any],
-    polygons_for_key: List[Dict[str, Any]],
+    key_summary: dict[str, Any],
+    polygons_for_key: list[dict[str, Any]],
     target: str,
     epsg: int,
-    report_cfg: Dict[str, Any],
-    logo_img: Optional[np.ndarray],
+    report_cfg: dict[str, Any],
+    logo_img: np.ndarray | None,
 ) -> None:
     theme = report_cfg.get("theme", {})
     bg_color = theme.get("bg", "#f5f3f0")
@@ -179,8 +184,23 @@ def build_field_page_report(
     axh.add_patch(plt.Rectangle((0, 0), 1, 1, transform=axh.transAxes, color=fg_color, zorder=0))
     if logo_img is not None:
         axh.imshow(logo_img, extent=(0.01, 0.21, 0.12, 0.88), transform=axh.transAxes, zorder=1)
-    axh.text(0.24, 0.64, "SOILYTIX FIELD REPORT", color="white", fontsize=17, fontweight="bold", transform=axh.transAxes)
-    axh.text(0.24, 0.28, f"Field {key} | Interpolation variable: {target}", color="white", fontsize=11, transform=axh.transAxes)
+    axh.text(
+        0.24,
+        0.64,
+        "SOILYTIX FIELD REPORT",
+        color="white",
+        fontsize=17,
+        fontweight="bold",
+        transform=axh.transAxes,
+    )
+    axh.text(
+        0.24,
+        0.28,
+        f"Field {key} | Interpolation variable: {target}",
+        color="white",
+        fontsize=11,
+        transform=axh.transAxes,
+    )
 
     krig_path = key_out / "kriging.tif"
     title = "Predicted Kriging Map"
@@ -218,7 +238,14 @@ def build_field_page_report(
         colorbar.ax.xaxis.set_ticks_position("bottom")
         ax1.set_title(title, color=fg_color, fontsize=12, fontweight="bold")
     else:
-        ax1.text(0.5, 0.5, "Interpolation output not available", ha="center", va="center", transform=ax1.transAxes)
+        ax1.text(
+            0.5,
+            0.5,
+            "Interpolation output not available",
+            ha="center",
+            va="center",
+            transform=ax1.transAxes,
+        )
         ax1.set_title("Predicted Map", color=fg_color, fontsize=12, fontweight="bold")
 
     if sample_points_path.exists():
@@ -256,7 +283,7 @@ def build_field_page_report(
                     borderpad=0.25,
                     handletextpad=0.3,
                 )
-        except Exception:
+        except Exception:  # noqa: S110 - a legend that fails to draw must not sink the report
             pass
 
     if zones_path.exists():
@@ -266,8 +293,18 @@ def build_field_page_report(
         valid = zarr[np.isfinite(zarr)]
         max_cls = int(np.max(valid)) if valid.size > 0 else 1
         cmap = plt.get_cmap("tab10", max(max_cls, 2))
-        ax2.imshow(zarr, extent=zextent, origin="upper", cmap=cmap, alpha=0.75, vmin=1, vmax=max(max_cls, 2))
-        classes = sorted({int(value) for value in valid.astype(int).tolist()}) if valid.size else [1]
+        ax2.imshow(
+            zarr,
+            extent=zextent,
+            origin="upper",
+            cmap=cmap,
+            alpha=0.75,
+            vmin=1,
+            vmax=max(max_cls, 2),
+        )
+        classes = (
+            sorted({int(value) for value in valid.astype(int).tolist()}) if valid.size else [1]
+        )
         handles = [
             Patch(
                 facecolor=cmap((cls - 1) / max(max_cls - 1, 1)),
@@ -296,7 +333,14 @@ def build_field_page_report(
         )
         ax2.set_title("Management Zones", color=fg_color, fontsize=12, fontweight="bold")
     else:
-        ax2.text(0.5, 0.5, "Management zones output not available", ha="center", va="center", transform=ax2.transAxes)
+        ax2.text(
+            0.5,
+            0.5,
+            "Management zones output not available",
+            ha="center",
+            va="center",
+            transform=ax2.transAxes,
+        )
         ax2.set_title("Management Zones", color=fg_color, fontsize=12, fontweight="bold")
 
     draw_polygon_edges(ax1, geometries, color="white")
@@ -314,7 +358,9 @@ def build_field_page_report(
     summary_lines = [
         f"Field: {key}",
         "",
-        f"Area (coordinate units^2): {area_coord2:.3f}" if np.isfinite(area_coord2) else "Area: n/a",
+        f"Area (coordinate units^2): {area_coord2:.3f}"
+        if np.isfinite(area_coord2)
+        else "Area: n/a",
         f"Observed {target}: n={obs_stats.get('count', 0)}, min={obs_stats.get('min', np.nan):.3f}, max={obs_stats.get('max', np.nan):.3f}, "
         f"mean={obs_stats.get('mean', np.nan):.3f}, std={obs_stats.get('std', np.nan):.3f}, CV%={obs_stats.get('cv_pct', np.nan):.2f}",
     ]
@@ -344,12 +390,12 @@ def build_field_page_report(
 
 def generate_project_pdf_report(
     output_dir: Path,
-    summary: Dict[str, Any],
-    polygon_groups: Dict[str, List[Dict[str, Any]]],
+    summary: dict[str, Any],
+    polygon_groups: dict[str, list[dict[str, Any]]],
     join_key: str,
     target: str,
     epsg: int,
-    report_cfg: Dict[str, Any],
+    report_cfg: dict[str, Any],
 ) -> Path:
     pdf_path = output_dir / str(report_cfg.get("pdf_filename", "project_report.pdf"))
     logo_path = report_cfg.get("logo_path")

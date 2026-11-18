@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -11,7 +11,7 @@ def safe_name(value: Any) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("_") or "key"
 
 
-def compute_stats(values: np.ndarray) -> Dict[str, float]:
+def compute_stats(values: np.ndarray) -> dict[str, float]:
     arr = np.asarray(values, dtype=float)
     if arr.size == 0:
         return {
